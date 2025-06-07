@@ -1,6 +1,7 @@
 name: Tokopedia Price Monitor
 
 on:
+yaml<br>on:<br> workflow_dispatch: {} # ← new<br> schedule:<br> - cron: '0 2 * * *'<br>
   schedule:
     # every day 09:00 WIB  (UTC+7 = 02:00 UTC)
     - cron:  '0 2 * * *'
