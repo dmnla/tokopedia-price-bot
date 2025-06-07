@@ -1,9 +1,14 @@
 name: Tokopedia Price Monitor
 
 on:
-  workflow_dispatch: {}          # Manual trigger
-  schedule:                      # Daily 09:00 WIB  (02:00 UTC)
+  workflow_dispatch: {}
+  schedule:
     - cron: '0 2 * * *'
+
+# ▶ give this workflow permission to write back to the repo
+permissions:
+  contents: write          # <<<  add these two lines
+  pull-requests: write     # <<<  (pull-requests line optional, keeps logs happy)
 
 jobs:
   scrape:
