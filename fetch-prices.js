@@ -1,5 +1,5 @@
 /* ============================================================================
-   fetch-prices.js – column-renamed version
+   fetch-prices.js – supports four shops (Daily_Bike + 3 competitors)
 ============================================================================ */
 const fs      = require('fs');
 const csv     = require('csv-parser');
@@ -7,9 +7,9 @@ const { writeToPath } = require('fast-csv');
 const axios   = require('axios');
 const cheerio = require('cheerio');
 
-const DELAY_MS = 1000;   // tweak if you add many SKUs
+const DELAY_MS = 1000;   // polite 1-sec throttle
 
-// ── helper: fetch page & pull price ──────────────────────────────────────────
+// ── grab price from HTML ───────────────────────────────────────────────────
 async function getPrice(url) {
   if (!url) return '';
   try {
@@ -28,11 +28,12 @@ async function getPrice(url) {
     const mJson = html.match(/"price"\s*:\s*"?(\d{4,11})"?/);
     if (mJson) return parseInt(mJson[1], 10);
 
-    const $ = cheerio.load(html);
-    const vis = $('[data-testid="lblPDPDetailProductPrice"]').text().replace(/[^\d]/g, '');
+    const vis = cheerio.load(html)('[data-testid="lblPDPDetailProductPrice"]')
+      .text()
+      .replace(/[^\d]/g, '');
     if (vis) return parseInt(vis, 10);
 
-    console.error('⚠️  price not found in HTML:', url);
+    console.error('⚠️  price not found:', url);
     return '';
   } catch {
     console.error('❌  fetch failed:', url);
@@ -40,9 +41,10 @@ async function getPrice(url) {
   }
 }
 
-const pct = (self, other) => other ? (((self - other) / other) * 100).toFixed(1) : '';
+const pct = (self, other) =>
+  other ? (((self - other) / other) * 100).toFixed(1) : '';
 
-// ── main ─────────────────────────────────────────────────────────────────────
+// ── main ───────────────────────────────────────────────────────────────────
 (async () => {
   const rows = [];
   fs.createReadStream('sku_map.csv')
@@ -50,20 +52,23 @@ const pct = (self, other) => other ? (((self - other) / other) * 100).toFixed(1)
     .on('data', d => rows.push(d))
     .on('end', async () => {
       const out = [];
-      for (const r of rows) {
-        const sku = r.sku_code;
 
-        const priceOur   = await getPrice(r.Daily_Bike);
-        const priceChar  = await getPrice(r.Charlie);
-        const priceHobby = await getPrice(r.Hobby_One);
+      for (const r of rows) {
+        const sku   = r.sku_code;
+        const pOur  = await getPrice(r.Daily_Bike);
+        const pA    = await getPrice(r.Charlie);
+        const pB    = await getPrice(r.Hobby_One);
+        const pMC   = await getPrice(r.MC_Bike);
 
         out.push({
           sku,
-          Daily_Bike: priceOur,
-          Charlie:    priceChar,
-          Hobby_One:  priceHobby,
-          diffPctCharlie:  pct(priceOur, priceChar),
-          diffPctHobbyOne: pct(priceOur, priceHobby)
+          Daily_Bike: pOur,
+          Charlie:    pA,
+          Hobby_One:  pB,
+          MC_Bike:    pMC,
+          diffPctCharlie:  pct(pOur, pA),
+          diffPctHobbyOne: pct(pOur, pB),
+          diffPctMCBike:   pct(pOur, pMC)
         });
 
         await new Promise(res => setTimeout(res, DELAY_MS));
