@@ -1,56 +1,55 @@
-// ---------- fetch-prices.js ----------
-// Scrapes price from any Tokopedia product URL via GraphQL
-// Outputs today.csv  →  sku, ourPrice, priceA, priceB, diffPctA, diffPctB
-// Uses only URL columns (no numeric item-ID needed)
-
-const fs   = require('fs');
-const csv  = require('csv-parser');
+// ------------ fetch-prices.js  (HTML-scrape version, no numeric ID needed) ----
+const fs      = require('fs');
+const csv     = require('csv-parser');
 const { writeToPath } = require('fast-csv');
-const tp   = require('tokopedia-gql');    // free wrapper: npm i tokopedia-gql
+const axios   = require('axios');
+const cheerio = require('cheerio');
 
-// ── tiny helper ────────────────────────────────────────────────────────────────
+// ── helper: get price straight from HTML ──────────────────────────────────────
 async function getPrice(url) {
-  if (!url) return '';                           // blank cell in CSV = skip
+  if (!url) return '';
   try {
-    const info  = await tp.getProduct(url);
-    const price = info.basic.price.value;       // integer (without “Rp”)
-    return parseInt(price, 10);
+    const { data: html } = await axios.get(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PriceBot/1.0)' }
+    });
+    // Tokopedia injects a JSON blob; parse the first "price":123456 style number
+    const m = html.match(/"price"\s*:\s*"?(\d{4,11})"?/);  // 10k – 999,999,999
+    if (m) return parseInt(m[1], 10);
+    console.error('⚠️  price not found in HTML:', url);
+    return '';
   } catch (err) {
-    console.error('❌ price fetch failed:', url);
+    console.error('❌  fetch failed:', url);
     return '';
   }
 }
 
-// ── main routine ───────────────────────────────────────────────────────────────
+// ── main routine ─────────────────────────────────────────────────────────────
 (async () => {
   const rows = [];
   fs.createReadStream('sku_map.csv')
     .pipe(csv())
-    .on('data', data => rows.push(data))
+    .on('data', d => rows.push(d))
     .on('end', async () => {
       const out = [];
-
       for (const r of rows) {
-        const sku       = r.sku_code;
-        const ourP      = await getPrice(r.our_url);
-        const compAP    = await getPrice(r.compA_url);
-        const compBP    = await getPrice(r.compB_url);
+        const sku    = r.sku_code;
+        const ourP   = await getPrice(r.our_url);
+        const priceA = await getPrice(r.compA_url);
+        const priceB = await getPrice(r.compB_url);
 
-        // % diff helper
-        const pctDiff = (self, other) =>
+        const pct = (self, other) =>
           other ? (((self - other) / other) * 100).toFixed(1) : '';
 
         out.push({
           sku,
           ourPrice:  ourP,
-          priceA:   compAP,
-          priceB:   compBP,
-          diffPctA: pctDiff(ourP, compAP),
-          diffPctB: pctDiff(ourP, compBP)
+          priceA:   priceA,
+          priceB:   priceB,
+          diffPctA: pct(ourP, priceA),
+          diffPctB: pct(ourP, priceB)
         });
       }
-
       writeToPath('today.csv', out, { headers: true })
-        .on('finish', () => console.log('✅ today.csv written'));
+        .on('finish', () => console.log('✅  today.csv written'));
     });
 })();
