@@ -1,29 +1,17 @@
 /* ============================================================================
-   fetch-prices.js  –  HTML-scrape version (URL-only)
-   --------------------------------------------------------------------------
-   • Reads sku_map.csv   (sku_code, our_url, compA_url, compB_url, note)
-   • Pulls each URL’s HTML, extracts price, saves today.csv
-   • Adjustable delay between requests (DELAY_MS) for polite scraping
+   fetch-prices.js – column-renamed version
 ============================================================================ */
-
 const fs      = require('fs');
 const csv     = require('csv-parser');
 const { writeToPath } = require('fast-csv');
 const axios   = require('axios');
 const cheerio = require('cheerio');
 
-/* ———————————————————————————————————————————————
-   CONFIG – adjust delay if you add many SKUs
-   (1 000 ms = 1 second)
-——————————————————————————————————————————————— */
-const DELAY_MS = 1000;    // set to 500 ms or 2000 ms if needed
+const DELAY_MS = 1000;   // tweak if you add many SKUs
 
-/* ———————————————————————————————————————————————
-   Helper: fetch a product page & extract price
-——————————————————————————————————————————————— */
+// ── helper: fetch page & pull price ──────────────────────────────────────────
 async function getPrice(url) {
   if (!url) return '';
-
   try {
     const { data: html } = await axios.get(url, {
       maxRedirects: 5,
@@ -37,33 +25,24 @@ async function getPrice(url) {
       }
     });
 
-    /* Strategy A – JSON blob  "price":123456 */
     const mJson = html.match(/"price"\s*:\s*"?(\d{4,11})"?/);
     if (mJson) return parseInt(mJson[1], 10);
 
-    /* Strategy B – Visible price tag (rare templates) */
     const $ = cheerio.load(html);
-    const visible = $('[data-testid="lblPDPDetailProductPrice"]').text();
-    const mVis = visible.replace(/[^\d]/g, '');
-    if (mVis) return parseInt(mVis, 10);
+    const vis = $('[data-testid="lblPDPDetailProductPrice"]').text().replace(/[^\d]/g, '');
+    if (vis) return parseInt(vis, 10);
 
     console.error('⚠️  price not found in HTML:', url);
     return '';
-  } catch (err) {
+  } catch {
     console.error('❌  fetch failed:', url);
     return '';
   }
 }
 
-/* ———————————————————————————————————————————————
-   Helper: percentage difference
-——————————————————————————————————————————————— */
-const pctDiff = (self, other) =>
-  other ? (((self - other) / other) * 100).toFixed(1) : '';
+const pct = (self, other) => other ? (((self - other) / other) * 100).toFixed(1) : '';
 
-/* ———————————————————————————————————————————————
-   MAIN
-——————————————————————————————————————————————— */
+// ── main ─────────────────────────────────────────────────────────────────────
 (async () => {
   const rows = [];
   fs.createReadStream('sku_map.csv')
@@ -71,24 +50,22 @@ const pctDiff = (self, other) =>
     .on('data', d => rows.push(d))
     .on('end', async () => {
       const out = [];
-
       for (const r of rows) {
         const sku = r.sku_code;
 
-        const ourP  = await getPrice(r.our_url);
-        const prA   = await getPrice(r.compA_url);
-        const prB   = await getPrice(r.compB_url);
+        const priceOur   = await getPrice(r.Daily_Bike);
+        const priceChar  = await getPrice(r.Charlie);
+        const priceHobby = await getPrice(r.Hobby_One);
 
         out.push({
           sku,
-          ourPrice:  ourP,
-          priceA:    prA,
-          priceB:    prB,
-          diffPctA:  pctDiff(ourP, prA),
-          diffPctB:  pctDiff(ourP, prB)
+          Daily_Bike: priceOur,
+          Charlie:    priceChar,
+          Hobby_One:  priceHobby,
+          diffPctCharlie:  pct(priceOur, priceChar),
+          diffPctHobbyOne: pct(priceOur, priceHobby)
         });
 
-        /* Polite throttle */
         await new Promise(res => setTimeout(res, DELAY_MS));
       }
 
