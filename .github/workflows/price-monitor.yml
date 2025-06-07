@@ -1,18 +1,13 @@
 name: Tokopedia Price Monitor
 
 on:
-  workflow_dispatch: {}          # lets you run it manually
-  schedule:                      # still runs every day 09:00 WIB
+  workflow_dispatch: {}          # Manual trigger
+  schedule:                      # Daily 09:00 WIB  (02:00 UTC)
     - cron: '0 2 * * *'
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
-
-jobs:
-  scrape:
-    runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
