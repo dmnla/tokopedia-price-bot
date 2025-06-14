@@ -42,7 +42,9 @@ async function getPrice(url) {
 }
 
 const pct = (self, other) =>
-  other ? (((self - other) / other) * 100).toFixed(1) : '';
+  self && other
+    ? (((self - other) / other) * 100).toFixed(1)
+    : '';
 
 // ── main ───────────────────────────────────────────────────────────────────
 (async () => {
