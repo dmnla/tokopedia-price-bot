@@ -8,6 +8,7 @@ const axios   = require('axios');
 const cheerio = require('cheerio');
 
 const DELAY_MS = 1000;   // polite 1-sec throttle
+const sleep = ms => new Promise(res => setTimeout(res, ms));
 
 // ── grab price from HTML ───────────────────────────────────────────────────
 async function getPrice(url) {
@@ -58,8 +59,11 @@ const pct = (self, other) =>
       for (const r of rows) {
         const sku   = r.sku_code;
         const pOur  = await getPrice(r.Daily_Bike);
+        await sleep(DELAY_MS);
         const pA    = await getPrice(r.Charlie);
+        await sleep(DELAY_MS);
         const pB    = await getPrice(r.Hobby_One);
+        await sleep(DELAY_MS);
         const pMC   = await getPrice(r.MC_Bike);
 
         out.push({
