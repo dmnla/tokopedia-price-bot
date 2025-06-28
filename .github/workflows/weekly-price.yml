@@ -2,8 +2,8 @@ name: weekly-price-check
 
 on:
   schedule:
-    - cron: '0 2 * * 1'         # Monday 09:00 Asia/Jakarta
-  workflow_dispatch:
+    - cron: '0 2 * * 1'      # Monday 09:00 WIB (UTC+7)
+  workflow_dispatch:         # manual run button
 
 jobs:
   scrape:
@@ -11,19 +11,17 @@ jobs:
     env:
       GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp_key.json
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Restore GCP creds from secret
-        shell: bash
+      - name: Restore GCP creds
         run: echo "$GCP_KEY_B64" | base64 -d > "$GOOGLE_APPLICATION_CREDENTIALS"
+        shell: bash
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install deps
+      - name: Install dependencies
         run: pip install -r requirements.txt
 
       - name: Run price checker
