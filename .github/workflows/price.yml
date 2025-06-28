@@ -2,7 +2,7 @@ name: weekly-price-check
 
 on:
   schedule:
-    - cron: '0 2 * * 1'   # Monday 09:00 Asia/Jakarta (= UTC+7)
+    - cron: '0 2 * * 1'         # Monday 09:00 Asia/Jakarta
   workflow_dispatch:
 
 jobs:
@@ -27,4 +27,4 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run price checker
-        run: python scripts/price_checker.py
+        run: python scripts/sku_map_v2.py
