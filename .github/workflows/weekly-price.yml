@@ -1,28 +1,48 @@
 name: weekly-price-check
 
+# ────────────────────────────────
+# 1. WHEN IT RUNS
+# ────────────────────────────────
 on:
+  # every Monday 09:00 Asia/Jakarta  (UTC+7  ➜ 02:00 UTC)
   schedule:
-    - cron: '0 2 * * 1'      # Monday 09:00 WIB (UTC+7)
-  workflow_dispatch:         # manual run button
+    - cron: '0 2 * * 1'
+  # manual trigger button in the Actions tab
+  workflow_dispatch:
 
+# ────────────────────────────────
+# 2. WHAT IT DOES
+# ────────────────────────────────
 jobs:
   scrape:
     runs-on: ubuntu-latest
+
+    # the Python script expects this env var
     env:
       GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp_key.json
+
     steps:
-      - uses: actions/checkout@v4
+    # 2-a  pull your repository code
+    - uses: actions/checkout@v4
 
-      - name: Restore GCP creds
-        run: echo "$GCP_KEY_B64" | base64 -d > "$GOOGLE_APPLICATION_CREDENTIALS"
-        shell: bash
+    # 2-b  restore the service-account key from the secret
+    - name: Restore GCP creds
+      env:
+        GCP_KEY_B64: ${{ secrets.GCP_KEY_B64 }}
+      shell: bash
+      run: |
+        echo "$GCP_KEY_B64" | base64 -d > "$GOOGLE_APPLICATION_CREDENTIALS"
+        echo "Key bytes: $(wc -c < "$GOOGLE_APPLICATION_CREDENTIALS")"
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+    # 2-c  set up Python
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+    # 2-d  install project dependencies
+    - name: Install dependencies
+      run: pip install -r requirements.txt
 
-      - name: Run price checker
-        run: python scripts/sku_map_v2.py
+    # 2-e  run the price-checker script
+    - name: Run price checker
+      run: python scripts/sku_map_v2.py
